@@ -114,7 +114,9 @@ GitHub: [@ratikantPradhan](https://github.com/ratikantPradhan)
 
 ---
 
-*For issues or questions, please open an issue on the GitHub repository.*###################
+*For issues or questions, please open an issue on the GitHub repository.*
+
+###################
 What is CodeIgniter
 ###################
 
