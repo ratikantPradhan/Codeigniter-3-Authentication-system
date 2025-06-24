@@ -1,0 +1,163 @@
+
+<?php
+// application/controllers/Auth.php
+class Auth extends CI_Controller {
+
+    public function __construct() {
+        parent::__construct();
+        $this->load->model('User_model');
+        $this->load->helper(['form', 'url']);
+        $this->load->library(['session', 'form_validation']);
+    }
+
+    public function login() {
+        $this->form_validation->set_rules('email', 'Email', 'required|valid_email');
+        $this->form_validation->set_rules('password', 'Password', 'required');
+
+        if ($this->form_validation->run() === FALSE) {
+            $this->load->view('login_view');
+        } else {
+            $email = $this->input->post('email');
+            $password = $this->input->post('password');
+
+            $user = $this->User_model->get_user_by_email($email);
+            if ($user && password_verify($password, $user->password)) {
+                $this->session->set_userdata(['user_id' => $user->id, 'username' => $user->username]);
+                redirect('dashboard');
+            } else {
+                $this->session->set_flashdata('error', 'Invalid credentials');
+                redirect('auth/login');
+            }
+        }
+    }
+
+    public function register() {
+        $this->form_validation->set_rules('username', 'Username', 'required|min_length[3]');
+        $this->form_validation->set_rules('email', 'Email', 'required|valid_email|is_unique[users.email]');
+        $this->form_validation->set_rules('password', 'Password', 'required|min_length[6]');
+
+        if ($this->form_validation->run() === FALSE) {
+            $this->load->view('register_view');
+        } else {
+            $data = [
+                'username' => $this->input->post('username'),
+                'email' => $this->input->post('email'),
+                'password' => password_hash($this->input->post('password'), PASSWORD_BCRYPT)
+            ];
+
+            $this->User_model->insert_user($data);
+            $this->session->set_flashdata('success', 'Registration successful. Please login.');
+            redirect('auth/login');
+        }
+    }
+
+    public function logout() {
+        $this->session->sess_destroy();
+        redirect('auth/login');
+    }
+}
+?>
+
+<?php
+// application/models/User_model.php
+class User_model extends CI_Model {
+    public function get_user_by_email($email) {
+        return $this->db->get_where('users', ['email' => $email])->row();
+    }
+
+    public function insert_user($data) {
+        return $this->db->insert('users', $data);
+    }
+}
+?>
+
+<?php
+// application/controllers/Dashboard.php
+class Dashboard extends CI_Controller {
+    public function __construct() {
+        parent::__construct();
+        if (!$this->session->userdata('user_id')) {
+            redirect('auth/login');
+        }
+    }
+
+    public function index() {
+        $this->load->view('dashboard_view');
+    }
+}
+?>
+
+<!-- application/views/login_view.php -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+<div class="bg-white p-8 rounded shadow-md w-96">
+    <h2 class="text-2xl font-bold mb-6">Login</h2>
+    <?php if ($this->session->flashdata('error')): ?>
+        <div class="text-red-500 mb-4"> <?= $this->session->flashdata('error'); ?> </div>
+    <?php endif; ?>
+    <?= form_open('auth/login'); ?>
+        <div class="mb-4">
+            <label class="block text-gray-700">Email</label>
+            <input type="email" name="email" class="w-full border rounded px-3 py-2">
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700">Password</label>
+            <input type="password" name="password" class="w-full border rounded px-3 py-2">
+        </div>
+        <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded">Login</button>
+    <?= form_close(); ?>
+    <p class="mt-4 text-center text-sm">Don't have an account? <a href="<?= site_url('auth/register') ?>" class="text-blue-500">Register</a></p>
+</div>
+</body>
+</html>
+
+<!-- application/views/register_view.php -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+<div class="bg-white p-8 rounded shadow-md w-96">
+    <h2 class="text-2xl font-bold mb-6">Register</h2>
+    <?= validation_errors('<div class="text-red-500 mb-2">', '</div>'); ?>
+    <?= form_open('auth/register'); ?>
+        <div class="mb-4">
+            <label class="block text-gray-700">Username</label>
+            <input type="text" name="username" class="w-full border rounded px-3 py-2">
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700">Email</label>
+            <input type="email" name="email" class="w-full border rounded px-3 py-2">
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700">Password</label>
+            <input type="password" name="password" class="w-full border rounded px-3 py-2">
+        </div>
+        <button type="submit" class="w-full bg-green-500 text-white py-2 rounded">Register</button>
+    <?= form_close(); ?>
+    <p class="mt-4 text-center text-sm">Already have an account? <a href="<?= site_url('auth/login') ?>" class="text-blue-500">Login</a></p>
+</div>
+</body>
+</html>
+
+<!-- application/views/dashboard_view.php -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="p-6">
+        <h1 class="text-3xl font-bold mb-4">Welcome, <?= $this->session->userdata('username'); ?>!</h1>
+        <a href="<?= site_url('auth/logout'); ?>" class="text-red-500">Logout</a>
+    </div>
+</body>
+</html>
