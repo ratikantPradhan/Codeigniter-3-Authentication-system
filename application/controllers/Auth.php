@@ -10,6 +10,11 @@ class Auth extends CI_Controller
         $this->load->helper(['form', 'url']);
         $this->load->library(['session', 'form_validation']);
     }
+    public function dashboard()
+    {
+        $data['users'] = $this->User_model->get_all_users(); // must return an array
+        $this->load->view('dashboard_view', $data);
+    }
 
     public function login()
     {
@@ -25,7 +30,7 @@ class Auth extends CI_Controller
             $user = $this->User_model->get_user_by_email($email);
             if ($user && password_verify($password, $user->password)) {
                 $this->session->set_userdata(['user_id' => $user->id, 'username' => $user->username]);
-                redirect('dashboard');
+                redirect('auth/dashboard');
             } else {
                 $this->session->set_flashdata('error', 'Invalid credentials');
                 redirect('auth/login');
@@ -47,6 +52,7 @@ class Auth extends CI_Controller
                 'username' => $this->input->post('username'),
                 'email' => $this->input->post('email'),
                 'password' => password_hash($this->input->post('password'), PASSWORD_BCRYPT)
+                
             ];
 
             $this->User_model->insert_user($data);
@@ -63,6 +69,29 @@ class Auth extends CI_Controller
         }
         return TRUE;
     }
+    
+    public function get_all_users() {
+        return $this->db->get('users')->result_array(); // or your actual table
+    }
+    public function status_update()
+    {
+        $id = $this->input->post('id');
+        $status = $this->input->post('status');
+        
+        // Load the model
+        $this->load->model('User_model');
+
+        // Use model to update
+        $success = $this->User_model->update_status($id, $status);
+
+        echo json_encode(['success' => $success]);
+        // $this->load->view('dashboard_view', $data);
+    }
+
+
+
+
+
     public function logout()
     {
         $this->session->sess_destroy();
